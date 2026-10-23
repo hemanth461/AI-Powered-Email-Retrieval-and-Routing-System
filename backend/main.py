@@ -71,8 +71,11 @@ def _scheduled_poll():
 
 @app.on_event("startup")
 def on_startup():
-    init_db()
-    logger.info("Database tables ensured.")
+    try:
+        init_db()
+        logger.info("Database tables ensured.")
+    except Exception as e:
+        logger.warning(f"Database initialization warning: {e}")
 
     # Only start the poller if Gmail credentials are actually present -
     # avoids crash-looping in environments that haven't set up OAuth yet.

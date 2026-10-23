@@ -8,13 +8,25 @@ from sqlalchemy.orm import sessionmaker
 from config.settings import settings
 from database.models import Base
 
-engine = create_engine(settings.database_url, pool_pre_ping=True, future=True)
+db_url = settings.database_url or ""
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+try:
+    engine = create_engine(db_url, pool_pre_ping=True, future=True)
+except Exception as e:
+    print(f"Warning: Failed to create engine with {db_url}: {e}. Falling back to SQLite.")
+    engine = create_engine("sqlite:///./email_triage.db", future=True)
+
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
 
 def init_db():
     """Create all tables if they don't already exist. Safe to call on every startup."""
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        print(f"Warning: Failed to create tables in database: {e}")
 
 
 @contextmanager

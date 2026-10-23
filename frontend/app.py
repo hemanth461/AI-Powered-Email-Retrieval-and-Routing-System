@@ -9,7 +9,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-BACKEND_URL = os.environ.get("BACKEND_BASE_URL", "http://localhost:8000")
+raw_backend = os.environ.get("BACKEND_BASE_URL", "http://127.0.0.1:8000")
+BACKEND_URL = raw_backend.replace("localhost", "127.0.0.1")
 
 # ----------------------------------------------------------- Page Config --
 st.set_page_config(
