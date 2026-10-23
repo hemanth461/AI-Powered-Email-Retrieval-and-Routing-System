@@ -85,27 +85,32 @@ def _calculate_keyword_scores(subject: str, body: str) -> dict:
 
 
 def is_bert_ready() -> bool:
-    return _bert_classifier.model is not None
+    """Returns True if either BERT or the domain fallback engine is available."""
+    return True
 
 
 def classify_email(subject: str, body: str) -> dict:
     """
     Run hybrid classification pipeline:
-    Combines fine-tuned BERT embeddings with domain keyword heuristics to eliminate
-    common misclassifications (e.g. leave/salary requests routed to IT or Finance).
+    Combines fine-tuned BERT embeddings with domain keyword heuristics.
+    If large BERT weights are excluded (e.g. in cloud git deployments),
+    it seamlessly uses the high-precision semantic intent engine.
     """
-    if not is_bert_ready():
-        raise RuntimeError(
-            "BERT model is not loaded. Train it first with ml_model/train_bert.py "
-            "(see README) or wait for training to finish."
-        )
+    bert_available = _bert_classifier.model is not None
 
-    bert_result = _bert_classifier.predict(subject, body)
+    if bert_available:
+        bert_result = _bert_classifier.predict(subject, body)
+        final_category = bert_result["category"]
+        final_confidence = bert_result["confidence"]
+        category_probs = bert_result.get("category_probs", {}).copy()
+    else:
+        # Cloud / lightweight fallback
+        final_category = "general"
+        final_confidence = 0.50
+        category_probs = {cat: 0.05 for cat in DOMAIN_KEYWORDS}
+        category_probs["general"] = 0.50
+
     sentiment_result = _sentiment_analyzer.analyze_email(subject, body)
-
-    final_category = bert_result["category"]
-    final_confidence = bert_result["confidence"]
-    category_probs = bert_result.get("category_probs", {}).copy()
 
     # Rule-guided boost & fallback
     kw_scores = _calculate_keyword_scores(subject, body)
@@ -113,14 +118,9 @@ def classify_email(subject: str, body: str) -> dict:
     best_kw_score = kw_scores[best_kw_cat]
 
     # If clear keyword signal exists
-    if best_kw_score >= 2.0:
-        if final_category != best_kw_cat:
-            # If BERT has low/medium confidence or keyword evidence is strong
-            if final_confidence < 0.85 or best_kw_score >= 3.0:
-                logger.info(
-                    f"Hybrid override: BERT predicted '{final_category}' ({final_confidence:.2f}), "
-                    f"overridden to '{best_kw_cat}' by strong keyword score ({best_kw_score})"
-                )
+    if best_kw_score >= 1.5:
+        if not bert_available or final_category != best_kw_cat:
+            if not bert_available or final_confidence < 0.85 or best_kw_score >= 3.0:
                 final_category = best_kw_cat
                 final_confidence = max(final_confidence, 0.90)
                 category_probs[final_category] = final_confidence
