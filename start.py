@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 import time
+import urllib.request
 
 def main():
     port = os.environ.get("PORT", "8501")
@@ -17,8 +18,24 @@ def main():
         "--port", "8000"
     ])
     
-    # Give backend a moment to bind port 8000
-    time.sleep(3)
+    # Wait for backend to be ready (up to 15 seconds)
+    print("Waiting for FastAPI backend to bind port 8000...")
+    backend_ready = False
+    for i in range(15):
+        if backend.poll() is not None:
+            print(f"Warning: FastAPI backend process exited prematurely with code {backend.returncode}")
+            break
+        try:
+            with urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=1) as resp:
+                if resp.status == 200:
+                    print(f"FastAPI backend is ready on port 8000! (Took {i+1}s)")
+                    backend_ready = True
+                    break
+        except Exception:
+            time.sleep(1)
+            
+    if not backend_ready and backend.poll() is None:
+        print("Backend did not report ready within 15s; proceeding with frontend startup.")
     
     print(f"[2/2] Starting Streamlit frontend on port {port}...")
     frontend_cmd = [
@@ -31,7 +48,8 @@ def main():
     try:
         subprocess.run(frontend_cmd)
     finally:
-        backend.terminate()
+        if backend.poll() is None:
+            backend.terminate()
 
 if __name__ == "__main__":
     main()

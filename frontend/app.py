@@ -140,22 +140,91 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# Direct in-process fallback handlers if HTTP endpoint is temporarily unreachable
+try:
+    from backend.services.classifier_service import classify_email as local_classify_email
+except Exception:
+    local_classify_email = None
+
+try:
+    from database.db import SessionLocal
+    from database import crud
+except Exception:
+    SessionLocal = None
+    crud = None
+
+try:
+    from backend.services.routing_service import process_unread_emails as local_process_unread
+except Exception:
+    local_process_unread = None
+
 # ------------------------------------------------------------ API Helpers --
 def api_get(path, params=None):
     try:
-        r = requests.get(f"{BACKEND_URL}{path}", params=params, timeout=30)
+        r = requests.get(f"{BACKEND_URL}{path}", params=params, timeout=5)
         r.raise_for_status()
         return r.json(), None
     except requests.exceptions.RequestException as e:
+        # Resilient local fallback if backend server is warming up or loopback is unavailable
+        if path == "/health":
+            if local_classify_email:
+                return {"status": "ok", "mode": "in-process"}, None
+        elif path == "/dashboard/stats" and crud and SessionLocal:
+            try:
+                db = SessionLocal()
+                stats = crud.get_dashboard_stats(db)
+                db.close()
+                return stats, None
+            except Exception as local_err:
+                return None, f"Local stats fallback: {local_err}"
+        elif path == "/emails" and crud and SessionLocal:
+            try:
+                p = params or {}
+                db = SessionLocal()
+                results, total = crud.list_emails(
+                    db,
+                    department=p.get("department"),
+                    priority=p.get("priority"),
+                    routing_status=p.get("routing_status"),
+                    search=p.get("search"),
+                    limit=int(p.get("limit", 100)),
+                    offset=int(p.get("offset", 0)),
+                )
+                records_dict = [
+                    {c.name: getattr(r, c.name) for c in r.__table__.columns}
+                    for r in results
+                ]
+                db.close()
+                return {"total": total, "results": records_dict}, None
+            except Exception as local_err:
+                return None, f"Local email list fallback: {local_err}"
+
         return None, str(e)
 
 
 def api_post(path, json=None, params=None):
     try:
-        r = requests.post(f"{BACKEND_URL}{path}", json=json, params=params, timeout=60)
+        r = requests.post(f"{BACKEND_URL}{path}", json=json, params=params, timeout=10)
         r.raise_for_status()
         return r.json(), None
     except requests.exceptions.RequestException as e:
+        # Resilient local fallback
+        if path == "/classify" and local_classify_email and json:
+            try:
+                res = local_classify_email(json.get("subject", ""), json.get("body", ""))
+                return res, None
+            except Exception as local_err:
+                return None, f"Local classification error: {local_err}"
+        elif path == "/emails/fetch" and local_process_unread and SessionLocal:
+            try:
+                db = SessionLocal()
+                max_r = int((params or {}).get("max_results", 20))
+                res = local_process_unread(db, max_results=max_r)
+                db.close()
+                return res, None
+            except Exception as local_err:
+                return None, f"Local fetch error: {local_err}"
+
         detail = None
         try:
             detail = e.response.json().get("detail")
@@ -170,7 +239,12 @@ with st.sidebar:
     st.caption("Autonomous Inbound Email Intelligence")
 
     health, err = api_get("/health")
-    if health:
+    if health and health.get("mode") == "in-process":
+        st.markdown(
+            '<div class="badge-pill pill-green">🟢 AI Inference Engine Active</div>',
+            unsafe_allow_html=True,
+        )
+    elif health:
         st.markdown(
             '<div class="badge-pill pill-green">🟢 FastAPI Backend Connected</div>',
             unsafe_allow_html=True,
