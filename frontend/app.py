@@ -3,6 +3,13 @@ Enterprise Streamlit Frontend for AI Email Triage & Autonomous Routing System.
 Powered by FastAPI, Fine-Tuned BERT, VADER Sentiment, and PostgreSQL.
 """
 import os
+import sys
+
+# Ensure repository root is in sys.path so backend and database packages can be imported
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
 import requests
 import pandas as pd
 import plotly.express as px
@@ -161,7 +168,7 @@ except Exception:
 # ------------------------------------------------------------ API Helpers --
 def api_get(path, params=None):
     try:
-        r = requests.get(f"{BACKEND_URL}{path}", params=params, timeout=5)
+        r = requests.get(f"{BACKEND_URL}{path}", params=params, timeout=1.5)
         r.raise_for_status()
         return r.json(), None
     except requests.exceptions.RequestException as e:
@@ -204,7 +211,7 @@ def api_get(path, params=None):
 
 def api_post(path, json=None, params=None):
     try:
-        r = requests.post(f"{BACKEND_URL}{path}", json=json, params=params, timeout=10)
+        r = requests.post(f"{BACKEND_URL}{path}", json=json, params=params, timeout=2.0)
         r.raise_for_status()
         return r.json(), None
     except requests.exceptions.RequestException as e:
@@ -309,14 +316,20 @@ tab1, tab2, tab3, tab4 = st.tabs(
 with tab1:
     col_left, col_right = st.columns([1.1, 0.9], gap="large")
 
+    if "preset_version" not in st.session_state:
+        st.session_state.preset_version = 0
     if "subj_input" not in st.session_state:
-        st.session_state.subj_input = ""
+        st.session_state.subj_input = "Taking tomorrow off for family emergency"
     if "body_input" not in st.session_state:
-        st.session_state.body_input = ""
+        st.session_state.body_input = (
+            "Hi, I won't be able to log in tomorrow as I need to travel back to my hometown for an urgent "
+            "family medical matter. I will be on casual time off and back on Monday."
+        )
 
     def load_preset(s, b):
         st.session_state.subj_input = s
         st.session_state.body_input = b
+        st.session_state.preset_version += 1
 
     with col_left:
         st.markdown("#### 📝 Classify Inbound Message")
@@ -330,36 +343,53 @@ with tab1:
                     "Taking tomorrow off for family emergency",
                     "Hi, I won't be able to log in tomorrow as I need to travel back to my hometown for an urgent family medical matter. I will be on casual time off and back on Monday.",
                 )
+                st.rerun()
         with p2:
             if st.button("💻 IT Hardware", use_container_width=True):
                 load_preset(
                     "Workstation screen turned blue and crashed",
                     "When I booted my workstation laptop today it showed a blue screen error and shut down. Can someone inspect the machine or arrange a hardware replacement?",
                 )
+                st.rerun()
         with p3:
             if st.button("📈 Sales Quote", use_container_width=True):
                 load_preset(
                     "Looking to evaluate the platform for 50 users",
                     "Hello, our organization is expanding rapidly. What are the annual subscription costs for 50 seats, and could we schedule a walkthrough demo this Thursday?",
                 )
+                st.rerun()
         with p4:
             if st.button("💳 Billing / Refund", use_container_width=True):
                 load_preset(
                     "Extra 200 dollars debited from my Mastercard",
                     "Hi, my bank statement shows two identical deductions of $199 on September 12. Could you please reverse the second transaction and send an updated receipt?",
                 )
+                st.rerun()
 
-        subject = st.text_input("Email Subject:", value=st.session_state.subj_input, placeholder="e.g. Request for software license upgrade")
-        body = st.text_area("Email Body:", value=st.session_state.body_input, height=180, placeholder="Paste email body or draft message...")
+        subject = st.text_input(
+            "Email Subject:",
+            value=st.session_state.subj_input,
+            key=f"subj_widget_{st.session_state.preset_version}",
+            placeholder="e.g. Request for software license upgrade",
+        )
+        body = st.text_area(
+            "Email Body:",
+            value=st.session_state.body_input,
+            key=f"body_widget_{st.session_state.preset_version}",
+            height=180,
+            placeholder="Paste email body or draft message...",
+        )
 
         classify_clicked = st.button("🚀 Analyze & Predict Route", type="primary", use_container_width=True)
 
     with col_right:
         st.markdown("#### 🎯 Classification Breakdown")
         if classify_clicked:
-            if subject or body:
+            clean_subj = (subject or "").strip()
+            clean_body = (body or "").strip()
+            if clean_subj or clean_body:
                 with st.spinner("Running neural inference & sentiment engine..."):
-                    result, err = api_post("/classify", json={"subject": subject, "body": body})
+                    result, err = api_post("/classify", json={"subject": clean_subj, "body": clean_body})
 
                 if err:
                     st.error(f"❌ Classification error: {err}")
