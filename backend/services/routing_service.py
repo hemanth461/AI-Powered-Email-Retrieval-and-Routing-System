@@ -117,3 +117,72 @@ def route_email(db: Session, email_id: int) -> bool:
         crud.update_routing_status(db, email_id, status="failed", error=error)
 
     return success
+
+
+SIMULATED_BATCH = [
+    {
+        "sender": "employee.sarah@company.com",
+        "subject": "Request for Paid Time Off - Family Emergency",
+        "body": "Hi HR team, I need to travel back to my hometown for an urgent family medical situation. I would like to request 3 days of casual time off starting tomorrow.",
+    },
+    {
+        "sender": "developer.mike@company.com",
+        "subject": "Laptop screen blue crash after system update",
+        "body": "Hi IT team, my workstation laptop crashed with a blue screen error code 0x0000007E right after the firmware update. Need a technician or machine replacement.",
+    },
+    {
+        "sender": "procurement@acme-global.org",
+        "subject": "Price quote inquiry for 75 Enterprise user licenses",
+        "body": "Hello Sales team, our department is assessing your platform for 75 team members. Could you provide a formal pricing quote and schedule a demo this Friday?",
+    },
+    {
+        "sender": "billing.auditor@client-co.net",
+        "subject": "Duplicate charge on Mastercard statement for Invoice 9901",
+        "body": "Hi Accounts, our credit card shows two identical deductions of $499 on October 18 for invoice #9901. Please issue a refund credit for the duplicate transaction.",
+    },
+    {
+        "sender": "user.alex@gmail.com",
+        "subject": "Unable to log in to dashboard - reset password fails",
+        "body": "Customer Support, I forgot my login credentials and the password reset link is throwing an error 500. Can you please assist in restoring account access?",
+    },
+]
+
+
+def simulate_inbound_emails(db: Session, count: int = 5) -> dict:
+    """
+    Simulates a realistic batch of inbound business emails, runs neural classification,
+    and records them into PostgreSQL. Ideal for cloud demonstrations when live Gmail
+    OAuth is not yet linked.
+    """
+    import uuid
+    summary = {"fetched": count, "new": 0, "duplicates": 0, "routed": 0, "failed": 0}
+    items = SIMULATED_BATCH[:count]
+
+    for item in items:
+        msg_id = f"sim-{uuid.uuid4().hex[:10]}"
+        start = time.time()
+        result = classify_email(item["subject"], item["body"])
+        proc_time = int((time.time() - start) * 1000)
+
+        record_data = {
+            "gmail_message_id": msg_id,
+            "sender": item["sender"],
+            "recipient": "inbox@company.com",
+            "subject": item["subject"],
+            "body": item["body"],
+            "received_at": datetime.utcnow(),
+            "predicted_category": result["category"],
+            "predicted_department": result["department_name"],
+            "confidence_score": result["confidence"],
+            "sentiment_score": result["sentiment_score"],
+            "sentiment_label": result["sentiment_label"],
+            "urgency_level": result["urgency_level"],
+            "priority": result["priority"],
+            "routing_status": "routed",
+            "processing_time_ms": proc_time,
+        }
+        crud.create_email_record(db, record_data)
+        summary["new"] += 1
+        summary["routed"] += 1
+
+    return summary

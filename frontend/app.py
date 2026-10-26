@@ -161,9 +161,13 @@ except Exception:
     crud = None
 
 try:
-    from backend.services.routing_service import process_unread_emails as local_process_unread
+    from backend.services.routing_service import (
+        process_unread_emails as local_process_unread,
+        simulate_inbound_emails as local_simulate_emails,
+    )
 except Exception:
     local_process_unread = None
+    local_simulate_emails = None
 
 # ------------------------------------------------------------ API Helpers --
 def api_get(path, params=None):
@@ -231,6 +235,15 @@ def api_post(path, json=None, params=None):
                 return res, None
             except Exception as local_err:
                 return None, f"Local fetch error: {local_err}"
+        elif path == "/emails/simulate" and local_simulate_emails and SessionLocal:
+            try:
+                db = SessionLocal()
+                cnt = int((params or {}).get("count", 5))
+                res = local_simulate_emails(db, count=cnt)
+                db.close()
+                return res, None
+            except Exception as local_err:
+                return None, f"Local simulation error: {local_err}"
 
         detail = None
         try:
@@ -468,11 +481,15 @@ with tab2:
 
     with c1:
         st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        st.markdown('<div class="glass-card-header">⚙️ Fetch Configuration</div>', unsafe_allow_html=True)
+        st.markdown('<div class="glass-card-header">⚙️ Inbound Execution Controls</div>', unsafe_allow_html=True)
         max_fetch = st.slider("Maximum unread emails to inspect per run:", 1, 50, 15)
         st.caption("Fetches messages matching `labelIds: ['UNREAD', 'INBOX']` via Gmail API v1.")
         
-        fetch_now = st.button("⚡ Fetch & Auto-Route Now", type="primary", use_container_width=True)
+        btn_col1, btn_col2 = st.columns(2)
+        with btn_col1:
+            fetch_now = st.button("⚡ Live Gmail Sync", type="primary", use_container_width=True)
+        with btn_col2:
+            simulate_now = st.button("🧪 Simulate 5 Inbound Emails", use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
     with c2:
@@ -480,24 +497,45 @@ with tab2:
         st.markdown('<div class="glass-card-header">🔄 Pipeline Execution Sequence</div>', unsafe_allow_html=True)
         st.markdown(
             """
-            <div class="step-box"><span>1️⃣</span> <span style="margin-left:8px;"><b>Gmail Inbound:</b> Poll unread message batch & attachments</span></div>
+            <div class="step-box"><span>1️⃣</span> <span style="margin-left:8px;"><b>Inbound Ingestion:</b> Poll live Gmail batch or ingest synthetic sample</span></div>
             <div class="step-box"><span>2️⃣</span> <span style="margin-left:8px;"><b>Sanitization:</b> Strip HTML tags, inline styles, and unescape entities</span></div>
-            <div class="step-box"><span>3️⃣</span> <span style="margin-left:8px;"><b>Neural Classification:</b> BERT 256-token contextual embeddings</span></div>
-            <div class="step-box"><span>4️⃣</span> <span style="margin-left:8px;"><b>Hybrid Disambiguation:</b> Domain keyword heuristics verification</span></div>
-            <div class="step-box"><span>5️⃣</span> <span style="margin-left:8px;"><b>Automated Forwarding:</b> Gmail API dispatch & PostgreSQL persistence</span></div>
+            <div class="step-box"><span>3️⃣</span> <span style="margin-left:8px;"><b>Neural Classification:</b> Contextual categorization & domain verification</span></div>
+            <div class="step-box"><span>4️⃣</span> <span style="margin-left:8px;"><b>Sentiment & Urgency:</b> Score urgency triggers and assign ticket priority</span></div>
+            <div class="step-box"><span>5️⃣</span> <span style="margin-left:8px;"><b>Ledger & Routing:</b> Persist to PostgreSQL and forward to department queue</span></div>
             """,
             unsafe_allow_html=True,
         )
         st.markdown("</div>", unsafe_allow_html=True)
 
-    if fetch_now:
-        with st.spinner("Connecting to Gmail API and running classification pipeline..."):
-            res, err = api_post("/emails/fetch", params={"max_results": max_fetch})
+    if fetch_now or simulate_now:
+        endpoint = "/emails/fetch" if fetch_now else "/emails/simulate"
+        params = {"max_results": max_fetch} if fetch_now else {"count": 5}
+        with st.spinner("Processing inbound batch through classification & routing pipeline..."):
+            res, err = api_post(endpoint, params=params)
 
         if err:
-            st.error(f"❌ Gmail fetch error: {err}")
+            st.error(f"❌ Inbound pipeline error: {err}")
+            if "credentials" in err.lower() or "oauth" in err.lower():
+                with st.expander("🔑 How to link your real Gmail account to Render (2 Minutes)"):
+                    st.markdown(
+                        """
+                        Your live Gmail OAuth tokens are kept secure on your local computer (`credentials/` folder) 
+                        and are git-ignored for safety. To enable live Gmail fetching in Render:
+                        
+                        1. Go to your **[Render Dashboard](https://dashboard.render.com)**.
+                        2. Click **AI-Powered-Email-Retrieval-and-Routing-System** > **Environment**.
+                        3. Scroll down to **Secret Files** and click **Add Secret File**.
+                        4. Add your two credential files:
+                           * **File 1:** `credentials/gmail_credentials.json`
+                           * **File 2:** `credentials/gmail_token.json`
+                        5. Click **Save Changes** — Render will automatically restart and connect to your inbox!
+                        
+                        💡 *In the meantime, click **'🧪 Simulate 5 Inbound Emails'** above to test the live pipeline, database storage, and dashboard analytics!*
+                        """
+                    )
         else:
-            st.success("✅ Gmail sync run completed!")
+            mode_text = "Live Gmail Inbound" if fetch_now else "Simulated Inbound Batch"
+            st.success(f"✅ {mode_text} successfully triaged and recorded into PostgreSQL!")
             m1, m2, m3, m4, m5 = st.columns(5)
             with m1:
                 st.markdown(f'<div class="metric-card"><div class="metric-value" style="color:#60a5fa">{res["fetched"]}</div><div class="metric-label">Fetched</div></div>', unsafe_allow_html=True)

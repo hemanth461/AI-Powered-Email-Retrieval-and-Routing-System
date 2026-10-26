@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from database.db import get_db
 from database import crud
-from backend.services.routing_service import process_unread_emails
+from backend.services.routing_service import process_unread_emails, simulate_inbound_emails
 from backend.schemas import (
     FetchEmailsResponse,
     EmailListResponse,
@@ -14,6 +14,12 @@ from backend.schemas import (
 )
 
 router = APIRouter(prefix="/emails", tags=["Emails"])
+
+
+@router.post("/simulate", response_model=FetchEmailsResponse)
+def simulate_emails(count: int = 5, db: Session = Depends(get_db)):
+    """Simulates realistic inbound customer emails and routes them into the database."""
+    return simulate_inbound_emails(db, count=min(count, 5))
 
 
 @router.post("/fetch", response_model=FetchEmailsResponse)

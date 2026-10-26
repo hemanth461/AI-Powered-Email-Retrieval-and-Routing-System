@@ -48,6 +48,18 @@ class GmailService:
         """Load cached token, refresh it, or run the interactive OAuth flow."""
         creds = None
         token_path = settings.gmail_token_path
+        cred_path = settings.gmail_credentials_path
+
+        # Auto-hydrate credentials from environment variables if present
+        if not os.path.exists(token_path) and os.environ.get("GMAIL_TOKEN_DATA"):
+            os.makedirs(os.path.dirname(token_path) or ".", exist_ok=True)
+            with open(token_path, "w", encoding="utf-8") as f:
+                f.write(os.environ["GMAIL_TOKEN_DATA"])
+
+        if not os.path.exists(cred_path) and os.environ.get("GMAIL_CREDENTIALS_DATA"):
+            os.makedirs(os.path.dirname(cred_path) or ".", exist_ok=True)
+            with open(cred_path, "w", encoding="utf-8") as f:
+                f.write(os.environ["GMAIL_CREDENTIALS_DATA"])
 
         if os.path.exists(token_path):
             creds = Credentials.from_authorized_user_file(token_path, SCOPES)
@@ -56,14 +68,12 @@ class GmailService:
             if creds and creds.expired and creds.refresh_token:
                 creds.refresh(Request())
             else:
-                if not os.path.exists(settings.gmail_credentials_path):
+                if not os.path.exists(cred_path):
                     raise FileNotFoundError(
-                        f"Gmail OAuth client secret not found at "
-                        f"{settings.gmail_credentials_path}. See .env.example / README."
+                        f"Gmail OAuth client secret not found at {cred_path}. "
+                        "Add your credentials to Render Secret Files or use the Simulation mode."
                     )
-                flow = InstalledAppFlow.from_client_secrets_file(
-                    settings.gmail_credentials_path, SCOPES
-                )
+                flow = InstalledAppFlow.from_client_secrets_file(cred_path, SCOPES)
                 creds = flow.run_local_server(port=0)
 
             os.makedirs(os.path.dirname(token_path) or ".", exist_ok=True)
