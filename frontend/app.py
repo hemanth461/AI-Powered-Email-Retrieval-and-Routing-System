@@ -22,7 +22,7 @@ BACKEND_URL = raw_backend.replace("localhost", "127.0.0.1")
 
 # ----------------------------------------------------------- Page Config --
 st.set_page_config(
-    page_title="AutoTriage AI • Intelligent Email Routing",
+    page_title="Autonomous Email Retrieval & Routing System",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -266,8 +266,8 @@ def api_post(path, json=None, params=None):
 
 # --------------------------------------------------------------- Sidebar --
 with st.sidebar:
-    st.markdown("### ⚡ AutoTriage AI")
-    st.caption("Autonomous Inbound Email Intelligence")
+    st.markdown("### ⚡ Autonomous Email System")
+    st.caption("AI-Powered Email Retrieval & Routing")
 
     health, err = api_get("/health")
     if health and health.get("mode") == "in-process":
@@ -296,6 +296,7 @@ with st.sidebar:
         ("IT Support", "support@company.com", "🛠️"),
         ("Legal", "legal@company.com", "⚖️"),
         ("Escalations", "escalations@company.com", "🚨"),
+        ("General", "emailroutingretrieval@gmail.com", "📬"),
     ]
     for name, email, icon in departments:
         st.markdown(
@@ -310,22 +311,31 @@ with st.sidebar:
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("#### ⚙️ Architecture Specs")
-    st.caption("• **Model:** Fine-Tuned BERT Base (Uncased)\n• **Heuristics:** Hybrid Context Engine\n• **Sentiment:** VADER Lexicon\n• **DB:** PostgreSQL with SQLAlchemy\n• **API:** FastAPI ASGI Server")
+    st.markdown(
+        """
+        • **AI Classifier:** Fine-Tuned BERT  
+        • **Categories:** 8 Department Queues  
+        • **Sentiment Engine:** VADER  
+        • **Backend Server:** FastAPI  
+        • **Database:** PostgreSQL  
+        • **Email Protocol:** Gmail API OAuth 2.0  
+        """
+    )
 
 
 # ------------------------------------------------------------- Hero Banner --
 st.markdown(
     """
     <div class="hero-container">
-        <div class="hero-title">⚡ Autonomous Email Triage & Routing System</div>
+        <div class="hero-title">⚡ Autonomous Email Retrieval & Routing System</div>
         <div class="hero-subtitle">
-            Enterprise-grade email classification engine powered by Fine-Tuned BERT, semantic intent routing, 
-            and real-time Gmail dispatch to department mailboxes.
+            AI-powered system that reads incoming Gmail messages, classifies them using Fine-Tuned BERT, 
+            and automatically forwards them to the correct department inbox.
         </div>
         <div>
-            <span class="badge-pill pill-green">✓ Neural Classifier Active</span>
+            <span class="badge-pill pill-green">✓ BERT Classifier</span>
             <span class="badge-pill pill-blue">✓ Gmail API OAuth 2.0</span>
-            <span class="badge-pill pill-purple">✓ PostgreSQL Audit Ledger</span>
+            <span class="badge-pill pill-purple">✓ PostgreSQL</span>
         </div>
     </div>
     """,
@@ -333,7 +343,7 @@ st.markdown(
 )
 
 tab1, tab2, tab3, tab4 = st.tabs(
-    ["⚡ Live AI Playground", "📥 Gmail Automation", "📊 Executive Analytics", "🔍 Audit Ledger & History"]
+    ["⚡ Live AI Playground", "📥 Gmail Automation", "📊 Executive Analytics", "📜 Email History"]
 )
 
 # --------------------------------------------- Tab 1: Live AI Playground --
@@ -486,40 +496,30 @@ with tab1:
 # ------------------------------------------- Tab 2: Gmail Automation --
 with tab2:
     st.markdown("#### 📥 Gmail Inbox Monitor & Auto-Dispatcher")
-    st.caption("Continuously monitors your configured inbox via Gmail API OAuth2, strips HTML, runs inference, and automatically forwards emails to target department queues.")
+    st.caption("Monitors your Gmail inbox via Gmail API OAuth2, classifies incoming messages with BERT, and automatically forwards them to the right department mailbox.")
 
-    c1, c2 = st.columns([1, 1.2], gap="large")
-
-    with c1:
-        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        st.markdown('<div class="glass-card-header">⚙️ Inbound Execution Controls</div>', unsafe_allow_html=True)
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+    st.markdown('<div class="glass-card-header">⚙️ Inbound Execution Controls</div>', unsafe_allow_html=True)
+    
+    ctrl_col1, ctrl_col2 = st.columns([1.1, 1], gap="large")
+    with ctrl_col1:
         max_fetch = st.slider("Maximum unread emails to inspect per run:", 1, 50, 15)
-        st.caption("Fetches messages matching `labelIds: ['UNREAD', 'INBOX']` via Gmail API v1.")
-        
-        btn_col1, btn_col2 = st.columns(2)
-        with btn_col1:
-            fetch_now = st.button("⚡ Live Gmail Sync", type="primary", use_container_width=True)
-        with btn_col2:
-            simulate_now = st.button("🧪 Simulate 5 Inbound Emails", use_container_width=True)
-
-        st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
-        route_pending_now = st.button("🚀 Dispatch All Pending Emails to Mailboxes", use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    with c2:
-        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        st.markdown('<div class="glass-card-header">🔄 Pipeline Execution Sequence</div>', unsafe_allow_html=True)
         st.markdown(
             """
-            <div class="step-box"><span>1️⃣</span> <span style="margin-left:8px;"><b>Inbound Ingestion:</b> Poll live Gmail batch or ingest synthetic sample</span></div>
-            <div class="step-box"><span>2️⃣</span> <span style="margin-left:8px;"><b>Sanitization:</b> Strip HTML tags, inline styles, and unescape entities</span></div>
-            <div class="step-box"><span>3️⃣</span> <span style="margin-left:8px;"><b>Neural Classification:</b> Contextual categorization & domain verification</span></div>
-            <div class="step-box"><span>4️⃣</span> <span style="margin-left:8px;"><b>Sentiment & Urgency:</b> Score urgency triggers and assign ticket priority</span></div>
-            <div class="step-box"><span>5️⃣</span> <span style="margin-left:8px;"><b>Ledger & Routing:</b> Persist to PostgreSQL and forward to department queue</span></div>
+            <div style="font-size:13px; color:#94a3b8; line-height:1.6; margin-top:8px;">
+                • <b>Live Gmail Sync:</b> Pulls real unread emails from your connected inbox, runs BERT classification, and forwards them to target department mailboxes.<br>
+                • <b>Simulate 5 Emails:</b> Generates 5 realistic sample emails directly into the database to demo triage workflows without sending live emails.
+            </div>
             """,
             unsafe_allow_html=True,
         )
-        st.markdown("</div>", unsafe_allow_html=True)
+
+    with ctrl_col2:
+        fetch_now = st.button("⚡ Live Gmail Sync", type="primary", use_container_width=True)
+        simulate_now = st.button("🧪 Simulate 5 Sample Emails (Demo Mode)", use_container_width=True)
+        route_pending_now = st.button("🚀 Dispatch All Pending Emails to Mailboxes", use_container_width=True)
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
     if fetch_now or simulate_now:
         endpoint = "/emails/fetch" if fetch_now else "/emails/simulate"
@@ -654,10 +654,10 @@ with tab3:
         st.rerun()
 
 
-# ----------------------------------- Tab 4: Audit Ledger & History --
+# ----------------------------------- Tab 4: Email History --
 with tab4:
-    st.markdown("#### 🔍 Historical Email Audit Ledger")
-    st.caption("Search, filter, and inspect persisted email triage records and routing execution results.")
+    st.markdown("#### 📜 Inbound Email History")
+    st.caption("Search, filter, and inspect past email classifications and routing results.")
 
     f1, f2, f3, f4 = st.columns(4)
     with f1:
@@ -681,7 +681,7 @@ with tab4:
 
     records, err = api_get("/emails", params=filter_params)
     if err:
-        st.error(f"❌ Failed to load ledger: {err}")
+        st.error(f"❌ Failed to load email history: {err}")
     elif records:
         total_found = records.get("total", 0)
         results = records.get("results", [])
@@ -689,6 +689,24 @@ with tab4:
         st.markdown(f"**Found {total_found} historical records**")
         if results:
             df = pd.DataFrame(results)
+
+            # Convert UTC timestamp to user's local Indian Standard Time (IST)
+            if "processed_at" in df.columns:
+                try:
+                    df["processed_at"] = (
+                        pd.to_datetime(df["processed_at"])
+                        .dt.tz_localize("UTC")
+                        .dt.tz_convert("Asia/Kolkata")
+                        .dt.strftime("%Y-%m-%d %I:%M %p")
+                    )
+                except Exception:
+                    try:
+                        df["processed_at"] = (
+                            pd.to_datetime(df["processed_at"])
+                            + pd.Timedelta(hours=5, minutes=30)
+                        ).dt.strftime("%Y-%m-%d %I:%M %p")
+                    except Exception:
+                        pass
 
             pending_items = [r for r in results if r.get("routing_status") == "pending"]
             if pending_items:
@@ -735,7 +753,7 @@ with tab4:
                     "sentiment_label": st.column_config.TextColumn("Sentiment", width="small"),
                     "routing_status": st.column_config.TextColumn("Status", width="small"),
                     "routing_error": st.column_config.TextColumn("Routing Notes", width="medium"),
-                    "processed_at": st.column_config.DatetimeColumn("Processed At", format="YYYY-MM-DD HH:mm"),
+                    "processed_at": st.column_config.TextColumn("Processed At (IST)", width="medium"),
                 },
             )
 
@@ -743,9 +761,9 @@ with tab4:
             with c_down:
                 csv_data = df.to_csv(index=False).encode("utf-8")
                 st.download_button(
-                    "📥 Export Audit Ledger as CSV",
+                    "📥 Export Email History as CSV",
                     data=csv_data,
-                    file_name="email_triage_audit.csv",
+                    file_name="email_history.csv",
                     mime="text/csv",
                     use_container_width=True,
                 )
@@ -757,7 +775,7 @@ st.markdown("<br><hr style='border-color:rgba(255,255,255,0.08);'>", unsafe_allo
 st.markdown(
     """
     <div style="display:flex; justify-content:space-between; align-items:center; color:#64748b; font-size:12px;">
-        <span>⚡ AutoTriage AI • Enterprise Mailbox Routing Engine</span>
+        <span>⚡ Autonomous Email Retrieval & Routing System</span>
         <span>FastAPI • Fine-Tuned BERT • VADER • PostgreSQL • Streamlit</span>
     </div>
     """,
