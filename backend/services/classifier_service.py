@@ -20,31 +20,34 @@ _sentiment_analyzer = SentimentAnalyzer()
 DOMAIN_KEYWORDS = {
     "hr": [
         "leave", "leaves", "pto", "vacation", "casual leave", "sick leave", "maternity", "paternity",
-        "time off", "salary", "salary slip", "payslip", "pay slip", "compensation", "payroll",
-        "appraisal", "hike", "bonus", "reimbursement", "allowance", "provident fund", "pf",
-        "resignation", "notice period", "relieving letter", "experience letter", "employment verification",
-        "health insurance", "medical insurance", "benefits package", "human resources", "hr policy",
-        "onboarding", "joining date", "workplace concern", "annual leave"
+        "time off", "tomorrow off", "day off", "taking off", "family emergency", "taking tomorrow off",
+        "emergency", "medical leave", "out of office", "absence", "absent", "salary", "salary slip",
+        "payslip", "pay slip", "compensation", "payroll", "appraisal", "hike", "bonus", "reimbursement",
+        "allowance", "provident fund", "pf", "resignation", "notice period", "relieving letter",
+        "experience letter", "employment verification", "health insurance", "medical insurance",
+        "benefits package", "human resources", "hr policy", "onboarding", "joining date", "annual leave"
     ],
     "billing": [
         "invoice", "invoices", "receipt", "receipts", "refund", "refunds", "charged twice",
         "double charge", "charged", "billing statement", "credit card declined", "payment failed",
         "payment declined", "transaction failed", "billing issue", "tax invoice", "account balance",
         "subscription fee", "cancel subscription", "wire transfer", "payment method", "overcharged",
-        "payment issue"
+        "payment issue", "debited", "deduction", "deductions", "mastercard", "visa", "bank statement"
     ],
     "sales": [
         "quote", "quotation", "pricing", "price quote", "cost of", "demo", "product demo",
         "schedule a demo", "schedule demo", "enterprise plan", "volume discount", "discount",
         "purchase licenses", "buy licenses", "sales inquiry", "interested in purchasing",
         "partnership opportunity", "annual subscription", "upgrade plan", "commercial proposal",
-        "licensing options", "trial version", "sales representative"
+        "licensing options", "trial version", "sales representative", "evaluate", "evaluating",
+        "seats", "users"
     ],
     "it": [
         "vpn", "wifi", "network connection", "shared drive", "network password", "printer",
         "laptop", "monitor", "desktop", "hardware", "mouse", "keyboard", "install software",
         "internal portal", "active directory", "database access", "server access", "ip address",
-        "it support", "it team", "system admin", "workstation", "blue screen", "bitlocker"
+        "it support", "it team", "system admin", "workstation", "blue screen", "bitlocker",
+        "crashed", "hardware replacement"
     ],
     "support": [
         "bug", "crash", "crashes", "glitch", "error 404", "error 500", "not working",
@@ -118,12 +121,12 @@ def classify_email(subject: str, body: str) -> dict:
     best_kw_score = kw_scores[best_kw_cat]
 
     # If clear keyword signal exists
-    if best_kw_score >= 1.5:
-        if not bert_available or final_category != best_kw_cat:
-            if not bert_available or final_confidence < 0.85 or best_kw_score >= 3.0:
-                final_category = best_kw_cat
-                final_confidence = max(final_confidence, 0.90)
-                category_probs[final_category] = final_confidence
+    if best_kw_score >= 0.8:
+        if not bert_available or final_category != best_kw_cat or final_confidence < 0.80:
+            final_category = best_kw_cat
+            final_confidence = min(0.96, max(0.90, 0.85 + (best_kw_score * 0.02)))
+            category_probs = {cat: 0.01 for cat in DOMAIN_KEYWORDS}
+            category_probs[final_category] = final_confidence
         else:
             final_confidence = min(0.99, final_confidence + 0.15)
             category_probs[final_category] = final_confidence
