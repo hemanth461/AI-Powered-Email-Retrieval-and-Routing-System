@@ -110,9 +110,11 @@ def route_email(db: Session, email_id: int) -> bool:
             return False
 
         to_addr = record.department_email
-        if not to_addr or "@" not in str(to_addr):
+        if not to_addr or "@" not in str(to_addr) or "@company.com" in str(to_addr):
             dept_info = get_department_for_category(record.predicted_category or "general")
             to_addr = dept_info.get("email", settings.dept_general_email)
+            record.department_email = to_addr
+            db.commit()
 
         success, error = _gmail_service.forward_email(
             original_subject=record.subject or "",

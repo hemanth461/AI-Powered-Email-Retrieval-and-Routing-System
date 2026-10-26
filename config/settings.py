@@ -15,17 +15,17 @@ class Settings(BaseSettings):
     # ---- Gmail API ----
     gmail_credentials_path: str = "credentials/gmail_credentials.json"
     gmail_token_path: str = "credentials/gmail_token.json"
-    gmail_monitored_account: str = "inbox@yourcompany.com"
+    gmail_monitored_account: str = "emailroutingretrieval@gmail.com"
 
     # ---- Department routing addresses ----
-    dept_sales_email: str = "sales@company.com"
+    dept_sales_email: str = "salesroutingretrieval@gmail.com"
     dept_support_email: str = "support@company.com"
-    dept_billing_email: str = "finance@company.com"
-    dept_hr_email: str = "hr@company.com"
-    dept_it_email: str = "it@company.com"
+    dept_billing_email: str = "billingroutingretrieval@gmail.com"
+    dept_hr_email: str = "hrroutingretrieval@gmail.com"
+    dept_it_email: str = "itroutingretrieval@gmail.com"
     dept_legal_email: str = "legal@company.com"
     dept_complaint_email: str = "escalations@company.com"
-    dept_general_email: str = "general@company.com"
+    dept_general_email: str = "emailroutingretrieval@gmail.com"
 
     # ---- Backend ----
     backend_host: str = "0.0.0.0"
