@@ -18,12 +18,12 @@ def main():
         "--port", "8000"
     ])
     
-    # Wait for backend to be ready (up to 15 seconds)
+    # Wait for backend to be ready (up to 8 seconds)
     print("Waiting for FastAPI backend to bind port 8000...")
     backend_ready = False
-    for i in range(15):
+    for i in range(8):
         if backend.poll() is not None:
-            print(f"Warning: FastAPI backend process exited prematurely with code {backend.returncode}")
+            print(f"FastAPI backend exited with code {backend.returncode}")
             break
         try:
             with urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=1) as resp:
@@ -35,14 +35,16 @@ def main():
             time.sleep(1)
             
     if not backend_ready and backend.poll() is None:
-        print("Backend did not report ready within 15s; proceeding with frontend startup.")
+        print("FastAPI startup pending; frontend will use resilient direct inference.")
     
     print(f"[2/2] Starting Streamlit frontend on port {port}...")
     frontend_cmd = [
         sys.executable, "-m", "streamlit", "run", "frontend/app.py",
         "--server.port", str(port),
         "--server.address", "0.0.0.0",
-        "--server.headless", "true"
+        "--server.headless", "true",
+        "--server.enableCORS", "false",
+        "--server.enableXsrfProtection", "false"
     ]
     
     try:
