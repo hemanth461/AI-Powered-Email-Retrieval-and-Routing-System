@@ -4,6 +4,7 @@ Powered by FastAPI, Fine-Tuned BERT, VADER Sentiment, and PostgreSQL.
 """
 import os
 import sys
+import time
 
 # Ensure repository root is in sys.path so backend and database packages can be imported
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
