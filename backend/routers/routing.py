@@ -7,10 +7,16 @@ from sqlalchemy.orm import Session
 
 from database.db import get_db
 from database import crud
-from backend.services.routing_service import route_email
+from backend.services.routing_service import route_email, route_all_pending
 from backend.schemas import RouteResponse
 
 router = APIRouter(prefix="/route", tags=["Routing"])
+
+
+@router.post("/pending/all")
+def route_all_unrouted_emails(db: Session = Depends(get_db)):
+    """(Re)dispatch all pending stored emails to their target department mailboxes."""
+    return route_all_pending(db)
 
 
 @router.post("/{email_id}", response_model=RouteResponse)

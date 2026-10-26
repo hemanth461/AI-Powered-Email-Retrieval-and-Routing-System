@@ -14,7 +14,9 @@ from sqlalchemy.orm import Session
 
 from backend.services.gmail_service import GmailService
 from backend.services.classifier_service import classify_email
+from config.department_mapping import get_department_for_category
 from database import crud
+from database.models import EmailRecord
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -83,10 +85,13 @@ def process_unread_emails(db: Session, max_results: int = 20) -> dict:
 
         if settings.auto_routing_enabled:
             ok = route_email(db, record.id)
+            logger.info(f"Auto-routed email ID {record.id}: {'success' if ok else 'failed'}")
             if ok:
                 summary["routed"] += 1
             else:
                 summary["failed"] += 1
+        else:
+            logger.info(f"Auto-routing skipped for email ID {record.id} (auto_routing_enabled=False)")
 
         # Mark read in Gmail regardless of routing outcome, so we don't reprocess it
         try:
@@ -99,24 +104,51 @@ def process_unread_emails(db: Session, max_results: int = 20) -> dict:
 
 def route_email(db: Session, email_id: int) -> bool:
     """Forward a single stored email to its predicted department mailbox."""
-    record = crud.get_email(db, email_id)
-    if not record:
+    try:
+        record = crud.get_email(db, email_id)
+        if not record:
+            return False
+
+        to_addr = record.department_email
+        if not to_addr or "@" not in str(to_addr):
+            dept_info = get_department_for_category(record.predicted_category or "general")
+            to_addr = dept_info.get("email", settings.dept_general_email)
+
+        success, error = _gmail_service.forward_email(
+            original_subject=record.subject or "",
+            original_body=record.body or "",
+            original_sender=record.sender or "",
+            to_address=to_addr,
+            department_name=record.predicted_department or "General",
+        )
+
+        if success:
+            crud.update_routing_status(db, email_id, status="routed")
+        else:
+            crud.update_routing_status(db, email_id, status="failed", error=error)
+
+        return success
+    except Exception as e:
+        logger.error(f"Error executing route_email for record {email_id}: {e}")
+        try:
+            crud.update_routing_status(db, email_id, status="failed", error=str(e))
+        except Exception:
+            pass
         return False
 
-    success, error = _gmail_service.forward_email(
-        original_subject=record.subject or "",
-        original_body=record.body or "",
-        original_sender=record.sender or "",
-        to_address=record.department_email,
-        department_name=record.predicted_department,
-    )
 
-    if success:
-        crud.update_routing_status(db, email_id, status="routed")
-    else:
-        crud.update_routing_status(db, email_id, status="failed", error=error)
-
-    return success
+def route_all_pending(db: Session) -> dict:
+    """Find and dispatch all unrouted (pending) emails in the database."""
+    pending_records = db.query(EmailRecord).filter(EmailRecord.routing_status == "pending").all()
+    routed = 0
+    failed = 0
+    for record in pending_records:
+        ok = route_email(db, record.id)
+        if ok:
+            routed += 1
+        else:
+            failed += 1
+    return {"total": len(pending_records), "routed": routed, "failed": failed}
 
 
 SIMULATED_BATCH = [

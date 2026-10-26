@@ -164,15 +164,17 @@ try:
     from backend.services.routing_service import (
         process_unread_emails as local_process_unread,
         simulate_inbound_emails as local_simulate_emails,
+        route_all_pending as local_route_all_pending,
     )
 except Exception:
     local_process_unread = None
     local_simulate_emails = None
+    local_route_all_pending = None
 
 # ------------------------------------------------------------ API Helpers --
 def api_get(path, params=None):
     try:
-        r = requests.get(f"{BACKEND_URL}{path}", params=params, timeout=1.5)
+        r = requests.get(f"{BACKEND_URL}{path}", params=params, timeout=15.0)
         r.raise_for_status()
         return r.json(), None
     except requests.exceptions.RequestException as e:
@@ -215,7 +217,7 @@ def api_get(path, params=None):
 
 def api_post(path, json=None, params=None):
     try:
-        r = requests.post(f"{BACKEND_URL}{path}", json=json, params=params, timeout=2.0)
+        r = requests.post(f"{BACKEND_URL}{path}", json=json, params=params, timeout=35.0)
         r.raise_for_status()
         return r.json(), None
     except requests.exceptions.RequestException as e:
@@ -244,6 +246,14 @@ def api_post(path, json=None, params=None):
                 return res, None
             except Exception as local_err:
                 return None, f"Local simulation error: {local_err}"
+        elif path == "/route/pending/all" and local_route_all_pending and SessionLocal:
+            try:
+                db = SessionLocal()
+                res = local_route_all_pending(db)
+                db.close()
+                return res, None
+            except Exception as local_err:
+                return None, f"Local routing error: {local_err}"
 
         detail = None
         try:
@@ -490,6 +500,9 @@ with tab2:
             fetch_now = st.button("⚡ Live Gmail Sync", type="primary", use_container_width=True)
         with btn_col2:
             simulate_now = st.button("🧪 Simulate 5 Inbound Emails", use_container_width=True)
+
+        st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
+        route_pending_now = st.button("🚀 Dispatch All Pending Emails to Mailboxes", use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
     with c2:
@@ -547,6 +560,24 @@ with tab2:
                 st.markdown(f'<div class="metric-card"><div class="metric-value" style="color:#10b981">{res["routed"]}</div><div class="metric-label">Auto-Routed</div></div>', unsafe_allow_html=True)
             with m5:
                 st.markdown(f'<div class="metric-card"><div class="metric-value" style="color:#ef4444">{res["failed"]}</div><div class="metric-label">Failures</div></div>', unsafe_allow_html=True)
+
+    if route_pending_now:
+        with st.spinner("Dispatching unrouted emails to department mailboxes..."):
+            p_res, p_err = api_post("/route/pending/all")
+        if p_err:
+            st.error(f"❌ Dispatch failed: {p_err}")
+        else:
+            tot = p_res.get("total", 0)
+            routed = p_res.get("routed", 0)
+            failed = p_res.get("failed", 0)
+            if tot == 0:
+                st.info("ℹ️ All records in the database have already been successfully routed.")
+            elif failed > 0:
+                st.warning(f"⚠️ Routed {routed} of {tot} pending emails. {failed} encountered an error.")
+            else:
+                st.success(f"🎉 Successfully routed and forwarded {routed} pending emails to target department queues!")
+            time.sleep(1)
+            st.rerun()
 
 
 # ----------------------------------------- Tab 3: Executive Analytics --
@@ -658,6 +689,22 @@ with tab4:
         if results:
             df = pd.DataFrame(results)
 
+            pending_items = [r for r in results if r.get("routing_status") == "pending"]
+            if pending_items:
+                b1, b2 = st.columns([3, 1])
+                with b1:
+                    st.warning(f"⚠️ **{len(pending_items)} email(s) are pending department dispatch.**")
+                with b2:
+                    if st.button("🚀 Route Pending Now", type="primary", use_container_width=True, key="tab4_route_btn"):
+                        with st.spinner("Dispatching to mailboxes..."):
+                            d_res, d_err = api_post("/route/pending/all")
+                        if d_err:
+                            st.error(f"Routing failed: {d_err}")
+                        else:
+                            st.success(f"Dispatched {d_res.get('routed', 0)} email(s)!")
+                            time.sleep(1)
+                            st.rerun()
+
             # Style display dataframe
             cols = [
                 "id",
@@ -667,6 +714,7 @@ with tab4:
                 "priority",
                 "sentiment_label",
                 "routing_status",
+                "routing_error",
                 "processed_at",
             ]
             cols = [c for c in cols if c in df.columns]
@@ -683,6 +731,7 @@ with tab4:
                     "priority": st.column_config.TextColumn("Priority", width="small"),
                     "sentiment_label": st.column_config.TextColumn("Sentiment", width="small"),
                     "routing_status": st.column_config.TextColumn("Status", width="small"),
+                    "routing_error": st.column_config.TextColumn("Routing Notes", width="medium"),
                     "processed_at": st.column_config.DatetimeColumn("Processed At", format="YYYY-MM-DD HH:mm"),
                 },
             )

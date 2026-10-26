@@ -46,6 +46,7 @@ class GmailService:
 
     def _resolve_paths(self):
         token_candidates = [
+            "/tmp/gmail_token.json",
             "/etc/secrets/gmail_token.json",
             settings.gmail_token_path,
             "gmail_token.json",
@@ -93,9 +94,16 @@ class GmailService:
                 flow = InstalledAppFlow.from_client_secrets_file(cred_path, SCOPES)
                 creds = flow.run_local_server(port=0)
 
-            os.makedirs(os.path.dirname(token_path) or ".", exist_ok=True)
-            with open(token_path, "w") as token_file:
-                token_file.write(creds.to_json())
+            # Safely persist refreshed credentials without crashing if token_path is read-only (e.g. Render /etc/secrets)
+            try:
+                write_path = token_path
+                if "/etc/secrets" in str(write_path):
+                    write_path = "/tmp/gmail_token.json"
+                os.makedirs(os.path.dirname(write_path) or ".", exist_ok=True)
+                with open(write_path, "w", encoding="utf-8") as token_file:
+                    token_file.write(creds.to_json())
+            except Exception as write_err:
+                logger.warning(f"Could not persist refreshed token to disk: {write_err}")
 
         self.creds = creds
         self.service = build("gmail", "v1", credentials=creds)
@@ -233,25 +241,30 @@ class GmailService:
     def forward_email(self, original_subject: str, original_body: str, original_sender: str,
                        to_address: str, department_name: str):
         """Forward/route the email to a department mailbox via the Gmail API."""
-        service = self._ensure_service()
-
-        message = MIMEMultipart()
-        message["to"] = to_address
-        message["subject"] = f"[Routed: {department_name}] {original_subject}"
-
-        forward_note = (
-            f"This email was automatically routed to the {department_name} team "
-            f"by the Email Triage System.\n\n"
-            f"Original sender: {original_sender}\n"
-            f"---------- Forwarded message ----------\n\n"
-            f"{original_body}"
-        )
-        message.attach(MIMEText(forward_note, "plain"))
-
-        raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
         try:
+            service = self._ensure_service()
+            if not to_address or "@" not in str(to_address):
+                err = f"Invalid destination address '{to_address}' for department '{department_name}'"
+                logger.error(err)
+                return False, err
+
+            message = MIMEMultipart()
+            message["to"] = to_address
+            message["subject"] = f"[Routed: {department_name}] {original_subject}"
+
+            forward_note = (
+                f"This email was automatically routed to the {department_name} team "
+                f"by the Email Triage System.\n\n"
+                f"Original sender: {original_sender}\n"
+                f"---------- Forwarded message ----------\n\n"
+                f"{original_body}"
+            )
+            message.attach(MIMEText(forward_note, "plain"))
+
+            raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
             service.users().messages().send(userId="me", body={"raw": raw}).execute()
+            logger.info(f"Successfully routed email '{original_subject}' to {to_address}")
             return True, None
-        except HttpError as e:
+        except Exception as e:
             logger.error(f"Failed to forward email to {to_address}: {e}")
             return False, str(e)
