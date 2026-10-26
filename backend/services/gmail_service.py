@@ -44,11 +44,26 @@ class GmailService:
         self.creds: Optional[Credentials] = None
         self.service = None
 
+    def _resolve_paths(self):
+        token_candidates = [
+            "/etc/secrets/gmail_token.json",
+            settings.gmail_token_path,
+            "gmail_token.json",
+        ]
+        cred_candidates = [
+            "/etc/secrets/gmail_credentials.json",
+            settings.gmail_credentials_path,
+            "gmail_credentials.json",
+        ]
+
+        token_path = next((p for p in token_candidates if os.path.exists(p)), settings.gmail_token_path)
+        cred_path = next((p for p in cred_candidates if os.path.exists(p)), settings.gmail_credentials_path)
+        return token_path, cred_path
+
     def authenticate(self):
         """Load cached token, refresh it, or run the interactive OAuth flow."""
+        token_path, cred_path = self._resolve_paths()
         creds = None
-        token_path = settings.gmail_token_path
-        cred_path = settings.gmail_credentials_path
 
         # Auto-hydrate credentials from environment variables if present
         if not os.path.exists(token_path) and os.environ.get("GMAIL_TOKEN_DATA"):
@@ -61,6 +76,9 @@ class GmailService:
             with open(cred_path, "w", encoding="utf-8") as f:
                 f.write(os.environ["GMAIL_CREDENTIALS_DATA"])
 
+        # Re-check paths after hydration
+        token_path, cred_path = self._resolve_paths()
+
         if os.path.exists(token_path):
             creds = Credentials.from_authorized_user_file(token_path, SCOPES)
 
@@ -70,8 +88,7 @@ class GmailService:
             else:
                 if not os.path.exists(cred_path):
                     raise FileNotFoundError(
-                        f"Gmail OAuth client secret not found at {cred_path}. "
-                        "Add your credentials to Render Secret Files or use the Simulation mode."
+                        f"Gmail OAuth client secret not found. Looked in {cred_path}, /etc/secrets/gmail_credentials.json, and {settings.gmail_credentials_path}."
                     )
                 flow = InstalledAppFlow.from_client_secrets_file(cred_path, SCOPES)
                 creds = flow.run_local_server(port=0)

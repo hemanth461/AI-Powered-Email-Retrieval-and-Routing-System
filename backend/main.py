@@ -79,7 +79,15 @@ def on_startup():
 
     # Only start the poller if Gmail credentials are actually present -
     # avoids crash-looping in environments that haven't set up OAuth yet.
-    if os.path.exists(settings.gmail_credentials_path):
+    has_creds = any(
+        os.path.exists(p)
+        for p in [
+            settings.gmail_credentials_path,
+            "/etc/secrets/gmail_credentials.json",
+            "gmail_credentials.json",
+        ]
+    )
+    if has_creds:
         scheduler.add_job(
             _scheduled_poll,
             "interval",
