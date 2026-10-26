@@ -167,18 +167,21 @@ def simulate_inbound_emails(db: Session, count: int = 5) -> dict:
         record_data = {
             "gmail_message_id": msg_id,
             "sender": item["sender"],
-            "recipient": "inbox@company.com",
+            "receiver": "inbox@company.com",
             "subject": item["subject"],
             "body": item["body"],
+            "has_attachments": False,
             "received_at": datetime.utcnow(),
             "predicted_category": result["category"],
             "predicted_department": result["department_name"],
-            "confidence_score": result["confidence"],
+            "department_email": result["department_email"],
+            "confidence": result["confidence"],
             "sentiment_score": result["sentiment_score"],
             "sentiment_label": result["sentiment_label"],
             "urgency_level": result["urgency_level"],
             "priority": result["priority"],
             "routing_status": "routed",
+            "routed_at": datetime.utcnow(),
             "processing_time_ms": proc_time,
         }
         crud.create_email_record(db, record_data)
