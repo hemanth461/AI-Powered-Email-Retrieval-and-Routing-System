@@ -1,18 +1,16 @@
-# ---- Core / existing ML stack ----
+# ---- Core ML & NLP stack (Lightweight Cloud Tier) ----
 pandas>=2.0.0
 scikit-learn>=1.3.0
 joblib>=1.3.0
 vaderSentiment>=3.3.2
-torch>=2.0.0
-transformers>=4.30.0
 tqdm>=4.65.0
 
-# ---- Frontend ----
+# ---- Frontend Dashboard ----
 streamlit>=1.28.0
 plotly>=5.18.0
 requests>=2.31.0
 
-# ---- Backend (FastAPI) ----
+# ---- Backend (FastAPI ASGI Server) ----
 fastapi>=0.110.0
 uvicorn[standard]>=0.29.0
 pydantic>=2.6.0
@@ -24,13 +22,13 @@ sqlalchemy>=2.0.0
 psycopg2-binary>=2.9.9
 alembic>=1.13.0
 
-# ---- Gmail API / OAuth ----
+# ---- Gmail API & OAuth 2.0 ----
 google-api-python-client>=2.120.0
 google-auth-httplib2>=0.2.0
 google-auth-oauthlib>=1.2.0
 
-# ---- Scheduling / background polling ----
+# ---- Scheduling / Automation ----
 apscheduler>=3.10.4
 
-# ---- Config / secrets ----
+# ---- Secrets / Environment ----
 python-dotenv>=1.0.0

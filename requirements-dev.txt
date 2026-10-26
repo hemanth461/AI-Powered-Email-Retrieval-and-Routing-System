@@ -1,0 +1,4 @@
+# Development & local training dependencies (BERT fine-tuning)
+-r requirements.txt
+torch>=2.0.0
+transformers>=4.30.0
