@@ -14,7 +14,7 @@
 
 **An enterprise-grade, autonomous NLP pipeline that ingests unread customer emails via Gmail API, performs multi-task intent classification and sentiment urgency triage, maintains a full PostgreSQL audit trail, and automatically routes emails to designated departmental mailboxes.**
 
-[Explore Live Demo](https://ai-powered-email-retrieval-and-routing.onrender.com) • [Report Bug](https://github.com/Hemanth-K-19/Autonomous-AI-Email-Retrieval-and-Routing-System/issues) • [Request Feature](https://github.com/Hemanth-K-19/Autonomous-AI-Email-Retrieval-and-Routing-System/issues)
+[Explore Live Demo](https://ai-powered-email-retrieval-and-routing.onrender.com) • [Report Bug](https://github.com/hemanth461/Autonomous-Email-Retrieval-and-Routing-System/issues) • [Request Feature](https://github.com/hemanth461/Autonomous-Email-Retrieval-and-Routing-System/issues)
 
 </div>
 
@@ -200,8 +200,8 @@ Autonomous-AI-Email-Retrieval-and-Routing-System/
 
 ### 2. Clone Repository
 ```bash
-git clone https://github.com/Hemanth-K-19/Autonomous-AI-Email-Retrieval-and-Routing-System.git
-cd Autonomous-AI-Email-Retrieval-and-Routing-System
+git clone https://github.com/hemanth461/Autonomous-Email-Retrieval-and-Routing-System.git
+cd Autonomous-Email-Retrieval-and-Routing-System
 ```
 
 ### 3. Create Virtual Environment
@@ -349,5 +349,5 @@ Distributed under the MIT License. See `LICENSE` for more information.
 ## 👤 Author
 
 **Hemanth Kumar K**
-- GitHub: [@Hemanth-K-19](https://github.com/Hemanth-K-19)
+- GitHub: [@hemanth461](https://github.com/hemanth461)
 - Live Project: [Autonomous AI Email Routing System](https://ai-powered-email-retrieval-and-routing.onrender.com)
