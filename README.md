@@ -348,6 +348,6 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ## 👤 Author
 
-**Hemanth Kumar K**
+**Hemanthkumar V**
 - GitHub: [@hemanth461](https://github.com/hemanth461)
 - Live Project: [Autonomous AI Email Routing System](https://ai-powered-email-retrieval-and-routing.onrender.com)
