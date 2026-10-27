@@ -1,247 +1,353 @@
-# 📧 AI Email Classification & Automatic Department Routing System
+# ⚡ Autonomous AI Email Retrieval & Department Routing System
 
-A production-oriented extension of the original Streamlit + BERT + VADER
-email triage demo. It now retrieves real unread mail from Gmail, classifies
-and prioritizes it, stores a full audit trail in PostgreSQL, and
-automatically forwards each email to the right department mailbox — all
-through a FastAPI backend, with Streamlit as a thin REST client.
+<div align="center">
 
----
+[![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-Render_App-46E3B7?style=for-the-badge&logo=render&logoColor=white)](https://ai-powered-email-retrieval-and-routing.onrender.com)
+[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://streamlit.io/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![HuggingFace](https://img.shields.io/badge/Model-BERT%20%2B%20VADER-orange?style=for-the-badge&logo=huggingface&logoColor=white)](https://huggingface.co/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 
-## 1. Architecture
+<br/>
 
-```
-┌─────────────┐        REST (JSON)       ┌───────────────────┐
-│  Streamlit   │  ───────────────────►   │   FastAPI Backend  │
-│  Frontend    │  ◄───────────────────   │                    │
-└─────────────┘                          └─────────┬──────────┘
-                                                     │
-                     ┌───────────────────────────────┼───────────────────────────┐
-                     │                               │                           │
-                     ▼                               ▼                           ▼
-             ┌──────────────┐               ┌────────────────┐         ┌─────────────────┐
-             │  Gmail API    │               │   ML Pipeline   │         │   PostgreSQL     │
-             │ (fetch/send)  │               │ BERT + VADER    │         │  (audit trail)   │
-             └──────────────┘               └────────────────┘         └─────────────────┘
-```
+**An enterprise-grade, autonomous NLP pipeline that ingests unread customer emails via Gmail API, performs multi-task intent classification and sentiment urgency triage, maintains a full PostgreSQL audit trail, and automatically routes emails to designated departmental mailboxes.**
 
-Flow for one email:
+[Explore Live Demo](https://ai-powered-email-retrieval-and-routing.onrender.com) • [Report Bug](https://github.com/Hemanth-K-19/Autonomous-AI-Email-Retrieval-and-Routing-System/issues) • [Request Feature](https://github.com/Hemanth-K-19/Autonomous-AI-Email-Retrieval-and-Routing-System/issues)
 
-1. **Fetch** — `GmailService` pulls unread messages (sender, receiver,
-   subject, body, timestamp, attachment names) via the Gmail API.
-2. **Dedup check** — the Gmail `message_id` is checked against
-   `email_records` before any processing happens, so nothing is classified
-   or routed twice.
-3. **Classify** — the existing fine-tuned BERT model predicts a category
-   (sales / support / billing / hr / it / legal / complaint / general);
-   VADER scores sentiment and urgency keywords; these combine into a
-   priority (low/medium/high).
-4. **Map to department** — category → department name + mailbox address
-   (`config/department_mapping.py`, addresses configurable via `.env`).
-5. **Persist** — a full row is written to PostgreSQL (`email_records`).
-6. **Route** — the email is forwarded via the Gmail API to the department
-   mailbox; the row's `routing_status` becomes `routed` or `failed`
-   (with the error captured for retry).
-7. **Mark read** — the original Gmail message is marked read so it isn't
-   re-fetched.
-
-A background APScheduler job repeats steps 1–7 every
-`POLL_INTERVAL_SECONDS` (default 60s) once Gmail credentials are present.
-You can also trigger it on demand from the Streamlit "Gmail Inbox" tab or
-via `POST /emails/fetch`.
+</div>
 
 ---
 
-## 2. Project Structure
+> 🚀 **Live Production Deployment**:
+> **[https://ai-powered-email-retrieval-and-routing.onrender.com](https://ai-powered-email-retrieval-and-routing.onrender.com)**
+> *(Hosted on Render with automatic health-check pingers to ensure 24/7 availability. Note: If the service is idling, initial cold-start may take ~45–60 seconds).*
+
+---
+
+## 📸 Visual Interface & Demo Gallery
+
+### 1. Live AI Playground
+Interactive multi-task testing sandbox with real-time intent classification, softmax confidence distribution, VADER sentiment polarity, and priority score computation.
+
+![Live AI Playground](docs/screenshots/01_ai_playground.png)
+
+---
+
+### 2. Gmail Automation & Batch Processing
+End-to-end OAuth 2.0 inbox scanner that retrieves unread emails, runs deduplication checks, triggers NLP classification, and automatically dispatches routed copies to target department mailboxes.
+
+![Gmail Automation](docs/screenshots/02_gmail_automation.png)
+
+---
+
+### 3. Executive Analytics & Operational Insights
+Real-time KPI metric cards (Total Inbound, Auto-Routed, Critical/High Priority, Processing Latency), departmental workload volume distribution, and priority tier breakdown charts.
+
+![Executive Analytics](docs/screenshots/03_executive_analytics.png)
+
+---
+
+### 4. Inbound Email History & Audit Log
+Searchable, filterable PostgreSQL audit ledger displaying historical email records, sender metadata, classified categories, sentiment scores, routed target inboxes, and localized IST timestamps.
+
+![Email History](docs/screenshots/04_email_history.png)
+
+---
+
+## 🏗️ System Architecture
 
 ```
-email_triage_v2/
+                                  ┌────────────────────────┐
+                                  │   Inbound Gmail Mail   │
+                                  │  (Customer Inquiries)  │
+                                  └───────────┬────────────┘
+                                              │
+                                              ▼
+                                 ┌──────────────────────────┐
+                                 │    Google Gmail API      │
+                                 │   OAuth 2.0 Desktop/App  │
+                                 └────────────┬─────────────┘
+                                              │
+                                              ▼
+┌─────────────────────────┐      ┌──────────────────────────┐      ┌──────────────────────────┐
+│   Streamlit Frontend    │◄────►│     FastAPI Backend      │◄────►│  PostgreSQL Audit Store  │
+│  • AI Playground        │ REST │  • Async Ingestion Engine│ SQLAlchemy                       │
+│  • Inbox Automation     │ JSON │  • Dedup Guard           │      │  • email_records         │
+│  • Executive Analytics  │      │  • Background Scheduler  │      │  • Status & Error Logs   │
+│  • Audit History Table  │      │  • Auto-Forward Dispatch │      └──────────────────────────┘
+└─────────────────────────┘      └────────────┬─────────────┘
+                                              │
+                    ┌─────────────────────────┴────────────────────────┐
+                    ▼                                                  ▼
+      ┌──────────────────────────┐                       ┌──────────────────────────┐
+      │   Fine-Tuned BERT NLP    │                       │  VADER Sentiment Engine  │
+      │ • 8 Intent Categories    │                       │ • Polarity Compound (-1..1)
+      │ • Softmax Confidence %   │                       │ • Urgency Keyword Filter │
+      │ • Multi-class Logits     │                       │ • Priority Matrix (L/M/H)│
+      └─────────────┬────────────┘                       └─────────────┬────────────┘
+                    │                                                  │
+                    └─────────────────────────┬────────────────────────┘
+                                              │
+                                              ▼
+                                ┌──────────────────────────┐
+                                │   Department Dispatch    │
+                                └─────────────┬────────────┘
+                                              │
+        ┌───────────────────┬─────────────────┼───────────────────┬───────────────────┐
+        ▼                   ▼                 ▼                   ▼                   ▼
+ ┌──────────────┐    ┌──────────────┐  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
+ │  HR Inbox    │    │ Sales Inbox  │  │Billing Inbox │    │   IT Inbox   │    │ Escalations  │
+ └──────────────┘    └──────────────┘  └──────────────┘    └──────────────┘    └──────────────┘
+```
+
+---
+
+## 🎯 Department Routing Matrix
+
+Every inbound inquiry is analyzed, mapped to an organizational department, and dispatched to a dedicated recipient inbox:
+
+| Category | Target Department | Description & Typical Scenarios | Monitored Mailbox |
+| :--- | :--- | :--- | :--- |
+| **HR & Recruitment** | Human Resources | Job applications, resumes, leave requests, employee inquiries | `hrroutingretrieval@gmail.com` |
+| **Sales & Business** | Sales & Growth | Product inquiries, partnership deals, enterprise quotes, demos | `salesroutingretrieval@gmail.com` |
+| **Billing & Payments** | Finance & Billing | Invoice disputes, subscription refunds, payment failures | `billingroutingretrieval@gmail.com` |
+| **IT & Infrastructure** | IT Support & DevOps | VPN access, server outages, software credentials, bug reports | `itroutingretrieval@gmail.com` |
+| **Customer Support** | Customer Support | How-to questions, service feedback, general product guidance | Configurable in `.env` |
+| **Legal & Compliance** | Legal & Compliance | GDPR/privacy requests, contract audits, policy terms | Configurable in `.env` |
+| **Marketing & PR** | Marketing & PR | Press releases, sponsorship proposals, brand collaborations | Configurable in `.env` |
+| **Escalations** | Executive Escalations | High-urgency negative complaints, legal threats, critical risks | Configurable in `.env` |
+
+---
+
+## 🌟 Key Features
+
+- **Autonomous Gmail Pipeline**: Polls unread emails via OAuth 2.0 with automatic token refresh, parses RFC 2822 headers and MIME multi-part bodies, and marks emails read upon successful routing.
+- **Deduplication Engine**: Uses the unique Google `message_id` as an idempotent barrier in PostgreSQL to prevent duplicate processing or forwarding loops.
+- **Multi-Task NLP Classification**:
+  - **Fine-Tuned BERT (`bert-base-uncased`)**: Accurately classifies emails across 8 corporate departments with softmax confidence distributions.
+  - **VADER Sentiment & Urgency Analyzer**: Evaluates emotional polarity and urgent keywords (`urgent`, `critical`, `immediate`, `deadline`, `asap`) to generate priority tiers (`LOW`, `MEDIUM`, `HIGH`).
+- **Resilient Cloud Persistence**: Backed by PostgreSQL with SQLAlchemy ORM, storing complete message content, attachments metadata, prediction metrics, routing status, and millisecond latency.
+- **Fail-Safe Routing**: If network errors occur during forwarding, the record is marked as `failed` with the exact error message preserved, enabling one-click manual re-dispatch from the UI.
+- **Ephemeral-Safe OAuth Caching**: Seamlessly stores refreshed tokens in `/tmp/` across containerized cloud restarts on Render.
+- **Clean Executive Dashboard**: Built with Streamlit, Plotly, and Altair, featuring interactive filters, metric cards, and charts in localized Indian Standard Time (IST).
+
+---
+
+## 🛠️ Tech Stack
+
+| Domain | Technologies |
+| :--- | :--- |
+| **Backend & Microservices** | FastAPI, Uvicorn, Pydantic v2, APScheduler, Python 3.10+ |
+| **Machine Learning & NLP** | PyTorch, Hugging Face Transformers (BERT), NLTK VADER, Scikit-Learn |
+| **Frontend & Analytics** | Streamlit, Plotly Express, Altair, HTML5/CSS3 custom badges |
+| **Database & ORM** | PostgreSQL, SQLAlchemy 2.0, Psycopg2-binary |
+| **Google Cloud APIs** | Google Gmail API v1, Google Auth OAuthlib, Google API Python Client |
+| **Cloud Infrastructure** | Render (Docker & Web Services), UptimeRobot (Uptime Monitoring) |
+
+---
+
+## 📁 Repository Structure
+
+```
+Autonomous-AI-Email-Retrieval-and-Routing-System/
 ├── frontend/
-│   └── app.py                  # Streamlit UI - calls the backend over REST only
+│   └── app.py                     # Streamlit frontend with 4 specialized tabs & dark UI
 ├── backend/
-│   ├── main.py                 # FastAPI app, CORS, startup, background poller
-│   ├── schemas.py              # Pydantic request/response models
+│   ├── main.py                    # FastAPI entrypoint, CORS middleware & poller
+│   ├── schemas.py                 # Pydantic request/response validation schemas
 │   ├── routers/
-│   │   ├── emails.py           # POST /emails/fetch, GET /emails, GET /emails/{id}
-│   │   ├── classification.py   # POST /classify (ad-hoc, no Gmail/DB)
-│   │   ├── routing.py          # POST /route/{id} (manual re-route)
-│   │   └── dashboard.py        # GET /dashboard/stats
+│   │   ├── emails.py              # GET /emails, POST /emails/fetch, GET /emails/{id}
+│   │   ├── classification.py      # POST /classify (real-time test sandbox)
+│   │   ├── routing.py             # POST /route/{id} (manual routing trigger)
+│   │   └── dashboard.py           # GET /dashboard/stats (KPI metrics & distributions)
 │   └── services/
-│       ├── gmail_service.py    # OAuth, fetch unread, forward, mark read
-│       ├── classifier_service.py  # BERT + VADER + department resolution
-│       └── routing_service.py  # Orchestrates fetch -> classify -> store -> route
+│       ├── gmail_service.py       # Gmail OAuth 2.0, fetching, formatting & sending
+│       ├── classifier_service.py  # BERT inference + VADER priority engine
+│       └── routing_service.py     # End-to-end pipeline orchestration
 ├── ml_model/
-│   ├── bert_classifier.py      # BERT inference (unchanged from original system)
-│   └── sentiment_analyzer.py   # VADER sentiment + urgency + priority scoring
+│   ├── bert_classifier.py         # PyTorch BERT model loader and tokenizer
+│   └── sentiment_analyzer.py      # VADER sentiment and urgency scoring logic
 ├── database/
-│   ├── models.py                # SQLAlchemy ORM: EmailRecord
-│   ├── db.py                    # Engine/session management, init_db()
-│   └── crud.py                  # Queries: dedup check, list/search, dashboard stats
+│   ├── models.py                  # SQLAlchemy ORM model: EmailRecord
+│   ├── db.py                      # Database engine & scoped session lifecycle
+│   └── crud.py                    # Database queries, pagination, deduplication
 ├── config/
-│   ├── settings.py              # pydantic-settings, loads .env
-│   └── department_mapping.py    # category -> {department name, routing email}
+│   ├── settings.py                # Environment configuration via Pydantic BaseSettings
+│   └── department_mapping.py      # Category-to-Department and routing email mapping
+├── docs/
+│   └── screenshots/               # Production UI screenshots for documentation
 ├── scripts/
-│   ├── generate_email_data.py   # Synthetic training data generator
-│   ├── train_bert.py            # Fine-tunes bert-base-uncased on the data
-│   ├── evaluate_models.py       # Accuracy/latency benchmarking
-│   └── init_db.py               # One-off: create PostgreSQL tables
-├── credentials/                 # gmail_credentials.json / gmail_token.json (gitignored)
-├── data/                        # Generated training CSVs (gitignored)
-├── models/bert/                 # Fine-tuned model weights (gitignored)
-├── logs/                        # app.log
-├── .env.example
-├── .gitignore
-├── requirements.txt
-└── README.md
+│   ├── generate_email_data.py     # Generates synthetic domain email dataset
+│   ├── train_bert.py              # Fine-tunes BERT model on dataset
+│   ├── evaluate_models.py         # Evaluates accuracy, F1-score & latency
+│   └── init_db.py                 # Initializes PostgreSQL database schema
+├── credentials/                   # OAuth credentials (gitignored for security)
+├── render.yaml                    # Infrastructure-as-code for Render deployment
+├── requirements.txt               # Production Python dependencies
+└── README.md                      # Project documentation
 ```
 
 ---
 
-## 3. Setup
+## 🚀 Getting Started Locally
 
-### 3.1 Install dependencies
+### 1. Prerequisites
+- Python 3.10 or 3.11
+- PostgreSQL installed and running locally (or a cloud PostgreSQL URI)
+- Google Cloud Console project with Gmail API enabled
 
+### 2. Clone Repository
+```bash
+git clone https://github.com/Hemanth-K-19/Autonomous-AI-Email-Retrieval-and-Routing-System.git
+cd Autonomous-AI-Email-Retrieval-and-Routing-System
+```
+
+### 3. Create Virtual Environment
 ```bash
 python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
+# On Windows:
+venv\Scripts\activate
+# On macOS/Linux:
+source venv/bin/activate
+```
+
+### 4. Install Dependencies
+```bash
+pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 3.2 PostgreSQL
+### 5. Configure Environment Variables
+Create a `.env` file in the project root:
+```env
+# Database
+DATABASE_URL=postgresql://postgres:password@localhost:5432/email_triage
 
-```bash
-# create the database (adjust user/password as needed)
-createdb email_triage
+# Gmail OAuth
+GMAIL_CREDENTIALS_FILE=credentials/gmail_credentials.json
+GMAIL_TOKEN_FILE=credentials/gmail_token.json
+GMAIL_MONITORED_ACCOUNT=your-monitored-inbox@gmail.com
 
-cp .env.example .env
-# edit .env -> set DATABASE_URL to match your Postgres instance
+# Department Target Mailboxes
+DEPT_HR_EMAIL=hrroutingretrieval@gmail.com
+DEPT_SALES_EMAIL=salesroutingretrieval@gmail.com
+DEPT_BILLING_EMAIL=billingroutingretrieval@gmail.com
+DEPT_IT_EMAIL=itroutingretrieval@gmail.com
+DEPT_SUPPORT_EMAIL=support@yourcompany.com
+DEPT_LEGAL_EMAIL=legal@yourcompany.com
+DEPT_MARKETING_EMAIL=marketing@yourcompany.com
+DEPT_ESCALATION_EMAIL=escalations@yourcompany.com
 
-python scripts/init_db.py       # creates the email_records table
+# Background Polling
+POLL_INTERVAL_SECONDS=60
+BACKEND_URL=http://localhost:8000
 ```
 
-### 3.3 Gmail API / OAuth
-
-1. In [Google Cloud Console](https://console.cloud.google.com/), create a
-   project and enable the **Gmail API**.
-2. Under **APIs & Services → Credentials**, create an **OAuth Client ID**
-   of type **Desktop App**.
-3. Download the resulting JSON and save it as
-   `credentials/gmail_credentials.json`.
-4. Set `GMAIL_MONITORED_ACCOUNT` in `.env` to the mailbox you want to
-   monitor.
-5. The first time the backend calls the Gmail API (either via the
-   scheduler or `POST /emails/fetch`), a browser window opens for you to
-   grant consent. The resulting token is cached to
-   `credentials/gmail_token.json` so future runs are non-interactive.
-
-Scopes requested: `gmail.readonly`, `gmail.modify` (mark as read),
-`gmail.send` (forward to departments).
-
-### 3.4 Department routing addresses
-
-Edit the `DEPT_*_EMAIL` values in `.env` to point at your real department
-mailboxes (see `.env.example`).
-
-### 3.5 Train the BERT classifier
-
-The classification model is not included (weights are large and
-environment-specific) — train it locally:
-
+### 6. Initialize PostgreSQL Database
 ```bash
-python scripts/generate_email_data.py     # -> data/email_training_data.csv
-python scripts/train_bert.py              # fine-tunes bert-base-uncased, ~few min on GPU
+python scripts/init_db.py
 ```
 
-This produces `models/bert/fine_tuned_model/`, `models/bert/tokenizer/`,
-and `models/bert/label_encoder.joblib`, which `ml_model/bert_classifier.py`
-loads automatically.
+### 7. Setup Google Cloud Gmail OAuth
+1. Go to [Google Cloud Console](https://console.cloud.google.com/) and create a project.
+2. Enable the **Gmail API** under **APIs & Services**.
+3. Create an **OAuth 2.0 Client ID** (Application type: *Desktop App*).
+4. Download the JSON file and save it as `credentials/gmail_credentials.json`.
+5. On the first run, a browser window will open requesting consent. Once approved, `gmail_token.json` is generated automatically.
 
-### 3.6 Run the system
-
+### 8. Train or Download BERT Weights
 ```bash
-# Terminal 1: backend
+# Generate synthetic corporate emails:
+python scripts/generate_email_data.py
+
+# Fine-tune BERT classifier:
+python scripts/train_bert.py
+```
+
+### 9. Launch Backend & Frontend
+
+**Terminal 1 (FastAPI Backend):**
+```bash
 uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+```
 
-# Terminal 2: frontend
+**Terminal 2 (Streamlit UI):**
+```bash
 streamlit run frontend/app.py
 ```
 
-- Backend docs (Swagger UI): http://localhost:8000/docs
-- Frontend dashboard: http://localhost:8501
+- **Streamlit Interface:** `http://localhost:8501`
+- **FastAPI Interactive Docs (Swagger UI):** `http://localhost:8000/docs`
 
 ---
 
-## 4. API Reference
+## 🌐 Cloud Deployment (Render)
 
-| Method | Endpoint            | Description |
-|--------|----------------------|-------------|
-| GET    | `/health`             | Liveness check |
-| POST   | `/emails/fetch`       | Pull unread Gmail, classify, store, route. Query param `max_results` (default 20). |
-| GET    | `/emails`             | List/search stored emails. Query params: `department`, `priority`, `routing_status`, `search`, `limit`, `offset`. |
-| GET    | `/emails/{id}`        | Fetch a single stored email record. |
-| POST   | `/classify`            | Classify raw `{subject, body}` text without touching Gmail/DB — used by the Manual Classification tab. |
-| POST   | `/route/{id}`          | (Re)forward a stored email to its department mailbox — used to retry failures. |
-| GET    | `/dashboard/stats`     | Aggregate counts: total, processed, pending, high-priority, department breakdown, priority breakdown. |
+This repository includes a turnkey `render.yaml` blueprint for one-click deployment:
 
-All request/response shapes are defined in `backend/schemas.py` and are
-browsable interactively at `/docs`.
-
----
-
-## 5. Database Schema
-
-Table `email_records` (see `database/models.py`):
-
-| Column | Type | Notes |
-|---|---|---|
-| `id` | Integer PK | |
-| `gmail_message_id` | String, unique | Duplicate-processing guard |
-| `thread_id` | String | |
-| `sender` / `receiver` | String | |
-| `subject` / `body` | Text | |
-| `has_attachments` | Boolean | |
-| `attachment_names` | Text | Comma-separated filenames |
-| `received_at` | DateTime | Parsed from the Gmail `Date` header |
-| `predicted_category` | String | Raw BERT label (e.g. `billing`) |
-| `predicted_department` | String | Human-readable department (e.g. `Finance`) |
-| `department_email` | String | Mailbox the email was routed to |
-| `confidence` | Float | BERT softmax confidence |
-| `sentiment_label` / `sentiment_score` | String / Float | VADER compound score |
-| `urgency_level` | String | low / medium / high / critical |
-| `priority` | String | low / medium / high (drives dashboard alerts) |
-| `routing_status` | String | `pending` → `routed` or `failed` |
-| `routed_at` | DateTime | |
-| `routing_error` | Text | Populated on forwarding failure, for retry/debugging |
-| `processed_at` | DateTime | |
-| `processing_time_ms` | Integer | End-to-end classification latency |
+1. Connect your GitHub repository to [Render](https://render.com/).
+2. Add a **PostgreSQL** instance on Render and copy the internal `DATABASE_URL`.
+3. Add a **Web Service** with:
+   - **Environment:** `Python`
+   - **Build Command:** `pip install -r requirements.txt`
+   - **Start Command:** `sh -c "uvicorn backend.main:app --host 0.0.0.0 --port 8000 & streamlit run frontend/app.py --server.port $PORT --server.address 0.0.0.0"`
+4. Add environment variables:
+   - `DATABASE_URL`: Your Render PostgreSQL connection string.
+   - `BACKEND_URL`: `http://localhost:8000`
+   - `GMAIL_CREDENTIALS_JSON`: Stringified JSON of `gmail_credentials.json`.
+   - `GMAIL_TOKEN_JSON`: Stringified JSON of `gmail_token.json`.
+5. *(Optional)* Setup a free 5-minute ping monitor on [UptimeRobot](https://uptimerobot.com/) targeting your URL to prevent Render free-tier cold sleep.
 
 ---
 
-## 6. Design notes & best practices applied
+## 📊 Database Schema (`email_records`)
 
-- **Secrets** live only in `.env` (gitignored); `.env.example` documents
-  every variable. Gmail OAuth tokens and client secrets are also gitignored.
-- **OAuth**, not password/IMAP credentials, is used for Gmail access.
-- **Duplicate-processing guard**: `crud.email_exists()` checks the unique
-  `gmail_message_id` before any classification or routing work happens.
-- **Error handling / logging**: all backend activity logs to
-  `logs/app.log` and stdout; routing failures are stored with their error
-  message on the record itself (rather than silently dropped) so they can
-  be retried via `POST /route/{id}`.
-- **Separation of concerns**: the frontend never touches the database or
-  Gmail directly — it only calls the FastAPI REST layer, which is the same
-  contract any other client (mobile app, CLI, another service) could use.
+| Column Name | SQL Type | Description |
+| :--- | :--- | :--- |
+| `id` | `INTEGER` | Primary key identifier |
+| `gmail_message_id` | `VARCHAR` | Unique Gmail message identifier (prevents duplicate triage) |
+| `thread_id` | `VARCHAR` | Gmail conversation thread identifier |
+| `sender` | `VARCHAR` | Sender email address and name |
+| `receiver` | `VARCHAR` | Inbound receiver address |
+| `subject` | `TEXT` | Extracted email subject line |
+| `body` | `TEXT` | Extracted email body text |
+| `has_attachments` | `BOOLEAN` | Attachment flag |
+| `attachment_names` | `TEXT` | Comma-delimited list of attached filenames |
+| `received_at` | `TIMESTAMP` | RFC 2822 email timestamp |
+| `predicted_category` | `VARCHAR` | Raw ML classification label |
+| `predicted_department` | `VARCHAR` | Canonical department name |
+| `department_email` | `VARCHAR` | Destination inbox email |
+| `confidence` | `FLOAT` | Softmax probability score (0.0 to 1.0) |
+| `sentiment_label` | `VARCHAR` | `POSITIVE`, `NEUTRAL`, or `NEGATIVE` |
+| `sentiment_score` | `FLOAT` | VADER compound sentiment score (-1.0 to +1.0) |
+| `urgency_level` | `VARCHAR` | `low`, `medium`, `high`, `critical` |
+| `priority` | `VARCHAR` | `LOW`, `MEDIUM`, `HIGH` |
+| `routing_status` | `VARCHAR` | `pending`, `routed`, `failed` |
+| `routed_at` | `TIMESTAMP` | Timestamp of automated dispatch |
+| `routing_error` | `TEXT` | Captured error traceback if dispatch fails |
+| `processed_at` | `TIMESTAMP` | Timestamp of classification completion |
+| `processing_time_ms` | `INTEGER` | Pipeline execution latency in milliseconds |
 
-## 7. Known limitations / next steps
+---
 
-- The Gmail OAuth flow (`flow.run_local_server`) requires a local browser;
-  for a headless/server deployment, swap this for the web-server OAuth
-  flow and a proper redirect URI.
-- Attachments are currently listed by filename only (`has_attachments`,
-  `attachment_names`); downloading/storing the actual attachment bytes is
-  not implemented — add this in `gmail_service.py` if needed (Gmail API
-  `attachments.get`).
-- `forward_email()` sends a new message with the original content quoted
-  in the body (a "routed copy") rather than a native Gmail "Forward" —
-  this keeps the sending account clear as the sender, which is typically
-  required for department inboxes with their own reply threads.
+## 🔒 Security & Privacy
+
+- **OAuth 2.0 Authentication**: No email passwords or app passwords are stored. Access tokens use Google's scoped permissions (`gmail.readonly`, `gmail.modify`, `gmail.send`).
+- **Secret Isolation**: All credentials, tokens, and database passwords are kept in `.env` and `.gitignore`.
+- **Stateless Cloud Tokens**: Production uses environment-based JSON tokens cached in ephemeral `/tmp/` storage, preventing unauthorized access.
+
+---
+
+## 📜 License
+
+Distributed under the MIT License. See `LICENSE` for more information.
+
+---
+
+## 👤 Author
+
+**Hemanth Kumar K**
+- GitHub: [@Hemanth-K-19](https://github.com/Hemanth-K-19)
+- Live Project: [Autonomous AI Email Routing System](https://ai-powered-email-retrieval-and-routing.onrender.com)
